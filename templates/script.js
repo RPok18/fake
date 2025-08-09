@@ -327,4 +327,14 @@ function displayComprehensiveResults(data) {
                 <div class="analysis-card">
                     <div class="analysis-icon">✅</div>
                     <div class="analysis-value">${online.analysis.fact_checking_score}/100</div>
-                    <div class="analysis-label">Fact-Checking Score</
+                    <div class="analysis-label">Fact-Checking Score</div>
+                </div>
+                <div class="analysis-card">
+                    <div class="analysis-icon">📝</div>
+                    <div class="analysis-value">${online.analysis.content_quality}/100</div>
+                    <div class="analysis-label">Content Quality</div>
+                </div>
+            </div>
+        `;
+    }
+}
