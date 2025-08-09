@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 Enhanced Fake News Detection System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #3498db, #e74c3c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .verification-tabs {
+            display: flex;
+            margin-bottom: 30px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 5px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px 20px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .tab.active {
+            background: #3498db;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .tab:hover:not(.active) {
+            background: #e9ecef;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .input-section {
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .input-group textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 16px;
+            resize: vertical;
+            min-height: 120px;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-group textarea:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 10px 20px rgba(149, 165, 166, 0.3);
+        }
+
+        .results-section {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .verdict-card {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(46, 204, 113, 0.3);
+        }
+
+        .verdict-card.false {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            box-shadow: 0 10px 25px rgba(231, 76, 60, 0.3);
+        }
+
+        .verdict-card.uncertain {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            box-shadow: 0 10px 25px rgba(243, 156, 18, 0.3);
+        }
+
+        .verdict-card.unverified {
+            background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+            box-shadow: 0 10px 25px rgba(149, 165, 166, 0.3);
+        }
+
+        .verdict-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .verdict-confidence {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 15px;
+        }
+
+        .verdict-score {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .verdict-explanation {
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .analysis-card {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .analysis-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        .analysis-icon {
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+
+        .analysis-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .analysis-label {
+            color: #7f8c8d;
+            font-weight: 600;
+        }
+
+        .sources-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+
+        .sources-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+
+        .source-item {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #3498db;
+            transition: all 0.3s ease;
+        }
+
+        .source-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .source-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+
+        .source-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            color: #7f8c8d;
+        }
+
+        .credibility-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .credibility-high { background: #d4edda; color: #155724; }
+        .credibility-medium { background: #fff3cd; color: #856404; }
+        .credibility-low { background: #f8d7da; color: #721c24; }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #dc3545;
+        }
+
+        .credibility-guide {
+            background: #e8f4fd;
+            border: 1px solid #bee5eb;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .credibility-guide h3 {
+            color: #0c5460;
+            margin-bottom: 15px;
+        }
+
+        .credibility-levels {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+
+        .credibility-level {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            border-radius: 5px;
+            background: white;
+        }
+
+        .credibility-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+            
+            .verification-tabs {
+                flex-direction: column;
+            }
+            
+            .analysis-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-search"></i> Enhanced Fake News Detection</h1>
+            <p>AI-Powered News Verification with Multi-Source Analysis & Credibility Scoring</p>
+        </div>
+
+        <div class="main-content">
+            <div class="verification-tabs">
+                <div class="tab active" onclick="switchTab('ml')">
+                    <i class="fas fa-robot"></i> ML Prediction
+                </div>
+                <div class="tab" onclick="switchTab('online')">
+                    <i class="fas fa-globe"></i> Online Verification
+                </div>
+                <div class="tab" onclick="switchTab('comprehensive')">
+                    <i class="fas fa-shield-alt"></i> Comprehensive
+                </div>
+                <div class="tab" onclick="switchTab('live')">
+                    <i class="fas fa-broadcast-tower"></i> Live News
+                </div>
+            </div>
+
+            <!-- ML Prediction Tab -->
+            <div id="ml-tab" class="tab-content active">
+                <div class="input-section">
+                    <div class="input-group">
+                        <label for="ml-text">Enter news text to analyze:</label>
+                        <textarea id="ml-text" placeholder="Paste the news article or headline here..."></textarea>
+                    </div>
+                    <button class="btn" onclick="analyzeML()">
+                        <i class="fas fa-brain"></i> Analyze with AI
+                    </button>
+                </div>
+            </div>
+
+            <!-- Online Verification Tab -->
+            <div id="online-tab" class="tab-content">
+                <div class="input-section">
+                    <div class="input-group">
+                        <label for="online-text">Enter news text to verify online:</label>
+                        <textarea id="online-text" placeholder="Paste the news article or headline here..."></textarea>
+                    </div>
+                    <button class="btn" onclick="verifyOnline()">
+                        <i class="fas fa-search"></i> Verify Online
+                    </button>
+                </div>
+                
+                <div class="credibility-guide">
+                    <h3><i class="fas fa-info-circle"></i> Credibility Scoring Guide</h3>
+                    <div class="credibility-levels">
+                        <div class="credibility-level">
+                            <div class="credibility-color" style="background: #2ecc71;"></div>
+                            <span>90-100: Most Credible (Reuters, AP, BBC)</span>
+                        </div>
+                        <div class="credibility-level">
+                            <div class="credibility-color" style="background: #f1c40f;"></div>
+                            <span>80-89: Highly Credible (NYT, CNN, WSJ)</span>
+                        </div>
+                        <div class="credibility-level">
+                            <div class="credibility-color" style="background: #e67e22;"></div>
+                            <span>70-79: Credible (USA Today, ABC News)</span>
+                        </div>
+                        <div class="credibility-level">
+                            <div class="credibility-color" style="background: #e74c3c;"></div>
+                            <span>60-69: Generally Reliable</span>
+                        </div>
+                        <div class="credibility-level">
+                            <div class="credibility-color" style="background: #95a5a6;"></div>
+                            <span>Below 60: Variable/Unknown Reliability</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comprehensive Tab -->
+            <div id="comprehensive-tab" class="tab-content">
+                <div class="input-section">
+                    <div class="input-group">
+                        <label for="comprehensive-text">Enter news text for comprehensive analysis:</label>
+                        <textarea id="comprehensive-text" placeholder="Paste the news article or headline here..."></textarea>
+                    </div>
+                    <button class="btn" onclick="comprehensiveAnalysis()">
+                        <i class="fas fa-shield-alt"></i> Comprehensive Analysis
+                    </button>
+                </div>
+            </div>
+
+            <!-- Live News Tab -->
+            <div id="live-tab" class="tab-content">
+                <div class="input-section">
+                    <p>Analyze the latest news headlines with AI:</p>
+                    <button class="btn" onclick="fetchLiveNews()">
+                        <i class="fas fa-broadcast-tower"></i> Fetch Live News
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="results" class="results-section">
+                <!-- Results will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // Add active class to selected tab
+            event.target.classList.add('active');
+            
+            // Hide results when switching tabs
+            document.getElementById('results').style.display = 'none';
+        }
+
+        function showLoading() {
+            document.getElementById('results').innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Analyzing news... Please wait</p>
+                </div>
+            `;
+            document.getElementById('results').style.display = 'block';
+        }
+
+        function showError(message) {
+            document.getElementById('results').innerHTML = `
+                <div class="error-message">
+                    <i class="fas fa-exclamation-triangle"></i> ${message}
+                </div>
+            `;
+            document.getElementById('results').style.display = 'block';
+        }
+
+        function analyzeML() {
+            const text = document.getElementById('ml-text').value.trim();
+            if (!text) {
+                showError('Please enter some text to analyze.');
+                return;
+            }
+
+            showLoading();
+
+            fetch('/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ text: text })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    displayMLResults(data);
+                }
+            })
+            .catch(error => {
+                showError('An error occurred while analyzing the text.');
+                console.error('Error:', error);
+            });
+        }
+
+        function verifyOnline() {
+            const text = document.getElementById('online-text').value.trim();
+            if (!text) {
+                showError('Please enter some text to verify.');
+                return;
+            }
+
+            showLoading();
+
+            fetch('/verify-online', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ text: text })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    displayOnlineResults(data);
+                }
+            })
+            .catch(error => {
+                showError('An error occurred while verifying the text.');
+                console.error('Error:', error);
+            });
+        }
+
+        function comprehensiveAnalysis() {
+            const text = document.getElementById('comprehensive-text').value.trim();
+            if (!text) {
+                showError('Please enter some text to analyze.');
+                return;
+            }
+
+            showLoading();
+
+            fetch('/verify', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ text: text })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    displayComprehensiveResults(data);
+                }
+            })
+            .catch(error => {
+                showError('An error occurred while analyzing the text.');
+                console.error('Error:', error);
+            });
+        }
+
+        function fetchLiveNews() {
+            showLoading();
+
+            fetch('/live-news')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    displayLiveNewsResults(data);
+                }
+            })
+            .catch(error => {
+                showError('An error occurred while fetching live news.');
+                console.error('Error:', error);
+            });
+        }
+
+        function displayMLResults(data) {
+            const resultsDiv = document.getElementById('results');
+            const prediction = data.prediction;
+            const confidence = (data.confidence * 100).toFixed(1);
+            
+            resultsDiv.innerHTML = `
+                <div class="verdict-card ${prediction === 'fake' ? 'false' : ''}">
+                    <div class="verdict-title">
+                        <i class="fas fa-${prediction === 'fake' ? 'times-circle' : 'check-circle'}"></i>
+                        ${prediction.toUpperCase()}
+                    </div>
+                    <div class="verdict-confidence">Confidence: ${confidence}%</div>
+                    <div class="verdict-score">
+                        Probability: ${(data.probability_real * 100).toFixed(1)}% Real, 
+                        ${(data.probability_fake * 100).toFixed(1)}% Fake
+                    </div>
+                </div>
+                
+                <div class="analysis-grid">
+                    <div class="analysis-card">
+                        <div class="analysis-icon">🎯</div>
+                        <div class="analysis-value">${prediction.toUpperCase()}</div>
+                        <div class="analysis-label">AI Prediction</div>
+                    </div>
+                    <div class="analysis-card">
+                        <div class="analysis-icon">📊</div>
+                        <div class="analysis-value">${confidence}%</div>
+                        <div class="analysis-label">Confidence</div>
+                    </div>
+                    <div class="analysis-card">
+                        <div class="analysis-icon">✅</div>
+                        <div class="analysis-value">${(data.probability_real * 100).toFixed(1)}%</div>
+                        <div class="analysis-label">Real Probability</div>
+                    </div>
+                    <div class="analysis-card">
+                        <div class="analysis-icon">❌</div>
+                        <div class="analysis-value">${(data.probability_fake * 100).toFixed(1)}%</div>
+                        <div class="analysis-label">Fake Probability</div>
+                    </div>
+                </div>
+            `;
+            
+            resultsDiv.style.display = 'block';
+        }
+
+        function displayOnlineResults(data) {
+            const resultsDiv = document.getElementById('results');
+            const verdict = data.verdict;
+            let verdictClass = '';
+            
+            if (verdict.verdict === 'TRUE' || verdict.verdict === 'LIKELY TRUE') {
+                verdictClass = '';
+            } else if (verdict.verdict === 'LIKELY FALSE') {
+                verdictClass = 'false';
+            } else if (verdict.verdict === 'UNCERTAIN') {
+                verdictClass = 'uncertain';
+            } else {
+                verdictClass = 'unverified';
+            }
+            
+            resultsDiv.innerHTML = `
+                <div class="verdict-card ${verdictClass}">
+                    <div class="verdict-title">
+                        <i class="fas fa-${verdict.verdict === 'TRUE' ? 'check-circle' : 
+                                         verdict.verdict === 'LIKELY TRUE' ? 'check-circle' : 
+                                         verdict.verdict === 'LIKELY FALSE' ? 'times-circle' : 
+                                         verdict.verdict === 'UNCERTAIN' ? 'question-circle' : 'question-circle'}"></i>
+                        ${verdict.verdict}
+                    </div>
+                    <div class="verdict-confidence">Confidence: ${verdict.confidence}</div>
+                    <div class="verdict-score">Overall Score: ${verdict.final_score}/100</div>
+                    <div class="verdict-explanation">${verdict.explanation}</div>
+                </div>
+                
+                <div class="analysis-grid">
+                    <div class="analysis-card">
+                        <div class="analysis-icon">🔍</div>
+                        <div class="analysis-value">${data.analysis.source_credibility}/100</div>
+                        <div class="analysis-label">Source Credibility</div>
+                    </div>
+                    <div class="analysis-card">
+                        <div class="analysis-icon">🔗</div>
+                        <div class="analysis-value">${data.analysis.cross_source_consistency.score}/100</div>
+                        <div class="analysis-label">Cross-Source Consistency</div>
+                    </div>
+                    <div class="analysis-card">
+                        <div class="analysis-icon">✅</div>
+                        <div class="analysis-value">${data.analysis.fact_checking_score}/100</div>
+                        <div class="analysis-label">Fact-Checking Score</div>
+                    </div>
+                    <div class="analysis-card">
+                        <div class="analysis-icon">📝</div>
+                        <div class="analysis-value">${data.analysis.content_quality}/100</div>
+                        <div class="analysis-label">Content Quality</div>
+                    </div>
+                </div>
+                
+                ${data.top_sources.length > 0 ? `
+                    <div class="sources-section">
+                        <div class="sources-title">
+                            <i class="fas fa-newspaper"></i> Top Sources (${data.top_sources.length})
+                        </div>
+                        ${data.top_sources.map(source => `
+                            <div class="source-item">
+                                <div class="source-title">${source.title}</div>
+                                <div class="source-meta">
+                                    <span>${source.source} • ${source.api_source}</span>
+                                    <span class="credibility-badge credibility-${source.credibility >= 80 ? 'high' : source.credibility >= 60 ? 'medium' : 'low'}">
+                                        ${source.credibility}/100
+                                    </span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+            `;
+            
+            resultsDiv.style.display = 'block';
+        }
+
+        function displayComprehensiveResults(data) {
+            // This will show both ML and online results combined
+            const resultsDiv = document.getElementById('results');
+            
+            let html = '<h2 style="margin-bottom: 20px; color: #2c3e50;">🤖 Comprehensive Analysis Results</h2>';
+            
+            // ML Results
+            if (data.ml_prediction) {
+                const ml = data.ml_prediction;
+                html += `
+                    <div class="verdict-card ${ml.prediction === 'fake' ? 'false' : ''}" style="margin-bottom: 20px;">
+                        <div class="verdict-title">
+                            <i class="fas fa-robot"></i> AI Prediction: ${ml.prediction.toUpperCase()}
+                        </div>
+                        <div class="verdict-confidence">Confidence: ${(ml.confidence * 100).toFixed(1)}%</div>
+                    </div>
+                `;
+            }
+            
+            // Online Results
+            if (data.online_verification) {
+                const online = data.online_verification;
+                const verdict = online.verdict;
+                let verdictClass = '';
+                
+                if (verdict.verdict === 'TRUE' || verdict.verdict === 'LIKELY TRUE') {
+                    verdictClass = '';
+                } else if (verdict.verdict === 'LIKELY FALSE') {
+                    verdictClass = 'false';
+                } else if (verdict.verdict === 'UNCERTAIN') {
+                    verdictClass = 'uncertain';
+                } else {
+                    verdictClass = 'unverified';
+                }
+                
+                html += `
+                    <div class="verdict-card ${verdictClass}">
+                        <div class="verdict-title">
+                            <i class="fas fa-globe"></i> Online Verification: ${verdict.verdict}
+                        </div>
+                        <div class="verdict-confidence">Confidence: ${verdict.confidence}</div>
+                        <div class="verdict-score">Overall Score: ${verdict.final_score}/100</div>
+                        <div class="verdict-explanation">${verdict.explanation}</div>
+                    </div>
+                `;
+                
+                html += `
+                    <div class="analysis-grid">
+                        <div class="analysis-card">
+                            <div class="analysis-icon">🔍</div>
+                            <div class="analysis-value">${online.analysis.source_credibility}/100</div>
+                            <div class="analysis-label">Source Credibility</div>
+                        </div>
+                        <div class="analysis-card">
+                            <div class="analysis-icon">🔗</div>
+                            <div class="analysis-value">${online.analysis.cross_source_consistency.score}/100</div>
+                            <div class="analysis-label">Cross-Source Consistency</div>
+                        </div>
+                        <div class="analysis-card">
+                            <div class="analysis-icon">✅</div>
+                            <div class="analysis-value">${online.analysis.fact_checking_score}/100</div>
+                            <div class="analysis-label">Fact-Checking Score</div>
+                        </div>
+                        <div class="analysis-card">
+                            <div class="analysis-icon">📝</div>
+                            <div class="analysis-value">${online.analysis.content_quality}/100</div>
+                            <div class="analysis-label">Content Quality</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            resultsDiv.innerHTML = html;
+            resultsDiv.style.display = 'block';
+        }
+
+        function displayLiveNewsResults(data) {
+            const resultsDiv = document.getElementById('results');
+            
+            if (data.news && data.news.length > 0) {
+                let html = `
+                    <h2 style="margin-bottom: 20px; color: #2c3e50;">
+                        <i class="fas fa-broadcast-tower"></i> Live News Analysis
+                    </h2>
+                    <div class="sources-section">
+                        <div class="sources-title">
+                            <i class="fas fa-newspaper"></i> Latest Headlines (${data.news.length})
+                        </div>
+                `;
+                
+                data.news.forEach((item, index) => {
+                    const prediction = item.ml_prediction ? item.ml_prediction.prediction : 'Unknown';
+                    const confidence = item.ml_prediction ? (item.ml_prediction.confidence * 100).toFixed(1) : 'N/A';
+                    
+                    html += `
+                        <div class="source-item">
+                            <div class="source-title">${item.title}</div>
+                            <div class="source-meta">
+                                <span>${item.source} • ${item.published_at}</span>
+                                <span class="credibility-badge credibility-${prediction === 'real' ? 'high' : prediction === 'fake' ? 'low' : 'medium'}">
+                                    AI: ${prediction.toUpperCase()} (${confidence}%)
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+            } else {
+                showError('No live news available at the moment.');
+            }
+            
+            resultsDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
