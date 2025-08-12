@@ -178,3 +178,4 @@ If you encounter any issues or have questions:
 ---
 
 **Remember**: This tool is designed to help verify news, but always use critical thinking and multiple sources for important decisions!
+

@@ -8,7 +8,7 @@ import re
 from urllib.parse import urlparse
 
 # News API configuration (you'll need to get a free API key from https://newsapi.org/)
-NEWS_API_KEY = os.getenv('NEWS_API_KEY', 'your_news_api_key_here')
+NEWS_API_KEY = os.getenv('NEWS_API_KEY', '10a09f51f6ed4b6494bda63da3a64b59')
 
 # Credibility scores for different news sources (0-100, higher = more credible)
 CREDIBILITY_SCORES = {

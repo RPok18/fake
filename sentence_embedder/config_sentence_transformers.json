@@ -1,8 +1,8 @@
 {
   "__version__": {
     "sentence_transformers": "5.1.0",
-    "transformers": "4.53.2",
-    "pytorch": "2.7.1+cpu"
+    "transformers": "4.55.0",
+    "pytorch": "2.8.0+cpu"
   },
   "model_type": "SentenceTransformer",
   "prompts": {
