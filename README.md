@@ -104,10 +104,7 @@ Enter news text: quit
    Found 10 credible sources
    Average credibility score: 67.3/100
 
-🏆 Top 5 most credible sources:
-   1. 🟢 Operation Bunyan-al-Marsoos is a clear symbol...
-      Source: Associated Press of Pakistan (Credibility: 97/100)
-      API: Google News
+
 
 ✅ ASSESSMENT: CREDIBLE - News verified by multiple sources
 ```
