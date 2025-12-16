@@ -11,71 +11,12 @@ from urllib.parse import urlparse
 NEWS_API_KEY = os.getenv('NEWS_API_KEY', '10a09f51f6ed4b6494bda63da3a64b59')
 
 # Credibility scores for different news sources (0-100, higher = more credible)
-CREDIBILITY_SCORES = {
-    # Tier 1: Most Credible (90-100)
-    'reuters.com': 98, 'reuters': 98,
-    'ap.org': 97, 'apnews.com': 97, 'associated press': 97,
-    'bbc.com': 96, 'bbc.co.uk': 96, 'bbc': 96,
-    'npr.org': 95, 'npr': 95,
-    'pbs.org': 94, 'pbs': 94,
-    
-    # Tier 2: Highly Credible (80-89)
-    'nytimes.com': 88, 'nytimes': 88,
-    'washingtonpost.com': 87, 'washington post': 87,
-    'wsj.com': 86, 'wall street journal': 86,
-    'economist.com': 85, 'economist': 85,
-    'time.com': 84, 'time': 84,
-    'cnn.com': 83, 'cnn': 83,
-    'abcnews.go.com': 82, 'abc news': 82,
-    'cbsnews.com': 81, 'cbs news': 81,
-    'nbcnews.com': 80, 'nbc news': 80,
-    
-    # Tier 3: Credible (70-79)
-    'usatoday.com': 78, 'usa today': 78,
-    'foxnews.com': 75, 'fox news': 75,
-    'msnbc.com': 74, 'msnbc': 74,
-    'huffpost.com': 72, 'huffington post': 72,
-    'vox.com': 71, 'vox': 71,
-    
-    # Tier 4: Generally Reliable (60-69)
-    'theguardian.com': 68, 'guardian': 68,
-    'independent.co.uk': 65, 'independent': 65,
-    'telegraph.co.uk': 64, 'telegraph': 64,
-    'dailymail.co.uk': 62, 'daily mail': 62,
-    
-    # Tier 5: Variable Reliability (50-59)
-    'forbes.com': 58, 'forbes': 58,
-    'businessinsider.com': 55, 'business insider': 55,
-    'techcrunch.com': 54, 'techcrunch': 54,
-    'buzzfeed.com': 52, 'buzzfeed': 52,
-    
-    # Default score for unknown sources
-    'default': 50
-}
 
-def get_credibility_score(source_name):
-    """Get credibility score for a news source"""
-    if not source_name:
-        return CREDIBILITY_SCORES['default']
-    
-    source_lower = source_name.lower().strip()
-    
-    # Check exact matches first
-    if source_lower in CREDIBILITY_SCORES:
-        return CREDIBILITY_SCORES[source_lower]
-    
-    # Check partial matches
-    for key, score in CREDIBILITY_SCORES.items():
-        if key in source_lower or source_lower in key:
-            return score
-    
-    # Check for common patterns
-    if any(word in source_lower for word in ['news', 'times', 'post', 'journal', 'tribune']):
-        return 65  # Likely a traditional news source
-    elif any(word in source_lower for word in ['blog', 'medium', 'substack']):
-        return 45  # Likely a blog/opinion piece
-    
-    return CREDIBILITY_SCORES['default']
+import sys
+# Ensure config can be imported from root
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from config.config import CREDIBILITY_SCORES, get_credibility_score
+
 
 def analyze_content_quality(text):
     """Analyze the quality and characteristics of the news text"""

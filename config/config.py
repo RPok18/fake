@@ -3,11 +3,15 @@ import os
 from dotenv import load_dotenv
 
 # Load environment variables from .env file if it exists
+# Load environment variables from .env file if it exists
 load_dotenv()
+
+# Define Project Root
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Try to import local configuration (for API keys)
 try:
-    from config_local import *
+    from .config_local import *
     print("✅ Loaded local configuration with API keys")
 except ImportError:
     print("⚠️  No local configuration found. Create config_local.py with your API keys.")

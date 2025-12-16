@@ -5,24 +5,21 @@ import logging
 from datetime import datetime
 from functools import lru_cache
 
-import joblib
-import numpy as np
+
 import requests
 from bs4 import BeautifulSoup
 from flask import Flask, request, jsonify, render_template, url_for
-from sentence_transformers import SentenceTransformer
+
 from urllib.parse import urlparse
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-# ---------------------------------------------------------------------
-# Basic app + logging + requests session with retries
-# ---------------------------------------------------------------------
+
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Create a requests session with retry/backoff for stability when calling external services
+
 session = requests.Session()
 retries = Retry(total=3, backoff_factor=0.5,
                 status_forcelist=[429, 500, 502, 503, 504],
@@ -31,98 +28,53 @@ adapter = HTTPAdapter(max_retries=retries)
 session.mount('https://', adapter)
 session.mount('http://', adapter)
 
-# ---------------------------------------------------------------------
-# Load model and embedder (defensive)
-# ---------------------------------------------------------------------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-try:
-    model = joblib.load(os.path.join(BASE_DIR, 'fake_news_model.pkl'))
-    embedder = SentenceTransformer(os.path.join(BASE_DIR, 'sentence_embedder'))
-    logger.info("✅ Model and embedder loaded successfully")
-except Exception as e:
-    logger.exception("❌ Error loading model/embedder: %s", e)
-    model = None
-    embedder = None
 
-# ---------------------------------------------------------------------
-# News API configuration
-# ---------------------------------------------------------------------
-try:
-    from config_local import NEWS_API_KEY  # you can store your key locally and exclude from git
-    logger.info("✅ Using NewsAPI key from local config")
-except Exception:
-    NEWS_API_KEY = os.getenv('NEWS_API_KEY', '10a09f51f6ed4b6494bda63da3a64b59')
-    if NEWS_API_KEY == '10a09f51f6ed4b6494bda63da3a64b59':
-        logger.warning("⚠️  No valid NewsAPI key found. Create config_local.py with your API key or set NEWS_API_KEY env var.")
+from config.config import ROOT_DIR, CREDIBILITY_SCORES, get_credibility_score
 
-# ---------------------------------------------------------------------
-# Credibility lookup
-# ---------------------------------------------------------------------
-CREDIBILITY_SCORES = {
-    'reuters.com': 98, 'reuters': 98,
-    'ap.org': 97, 'apnews.com': 97, 'associated press': 97,
-    'bbc.com': 96, 'bbc.co.uk': 96, 'bbc': 96,
-    'npr.org': 95, 'npr': 95,
-    'pbs.org': 94, 'pbs': 94,
-    
-    # Indian News Sources - High Credibility
-    'thehindu.com': 92, 'the hindu': 92, 'hindu': 92,
-    'timesofindia.indiatimes.com': 88, 'times of india': 88, 'toi': 88,
-    'orfonline.org': 90, 'observer research foundation': 90, 'orf': 90,
-    'indianexpress.com': 87, 'indian express': 87,
-    'theprint.in': 85, 'the print': 85,
-    'scroll.in': 84, 'scroll': 84,
-    'thewire.in': 83, 'the wire': 83,
-    'ndtv.com': 86, 'ndtv': 86,
-    'hindustantimes.com': 85, 'hindustan times': 85,
-    'deccanherald.com': 84, 'deccan herald': 84,
-    'thequint.com': 82, 'the quint': 82,
-    
-    'nytimes.com': 88, 'nytimes': 88,
-    'washingtonpost.com': 87, 'washington post': 87,
-    'wsj.com': 86, 'wall street journal': 86,
-    'economist.com': 85, 'economist': 85,
-    'time.com': 84, 'time': 84,
-    'cnn.com': 83, 'cnn': 83,
-    'abcnews.go.com': 82, 'abc news': 82,
-    'cbsnews.com': 81, 'cbs news': 81,
-    'nbcnews.com': 80, 'nbc news': 80,
-    'usatoday.com': 78, 'usa today': 78,
-    'foxnews.com': 75, 'fox news': 75,
-    'msnbc.com': 74, 'msnbc': 74,
-    'huffpost.com': 72, 'huffington post': 72,
-    'vox.com': 71, 'vox': 71,
-    'theguardian.com': 68, 'guardian': 68,
-    'independent.co.uk': 65, 'independent': 65,
-    'telegraph.co.uk': 64, 'telegraph': 64,
-    'dailymail.co.uk': 62, 'daily mail': 62,
-    'forbes.com': 58, 'forbes': 58,
-    'businessinsider.com': 55, 'business insider': 55,
-    'techcrunch.com': 54, 'techcrunch': 54,
-    'buzzfeed.com': 52, 'buzzfeed': 52,
-    'default': 50
-}
 
-def get_credibility_score(source_name):
-    """Get credibility score for a news source (defensive)."""
-    if not source_name:
-        return CREDIBILITY_SCORES['default']
-    source_lower = source_name.lower().strip()
-    if source_lower in CREDIBILITY_SCORES:
-        return CREDIBILITY_SCORES[source_lower]
-    for key, score in CREDIBILITY_SCORES.items():
-        if key in source_lower or source_lower in key:
-            return score
-    if any(word in source_lower for word in ['news', 'times', 'post', 'journal', 'tribune']):
-        return 65
-    elif any(word in source_lower for word in ['blog', 'medium', 'substack']):
-        return 45
-    return CREDIBILITY_SCORES['default']
 
-# ---------------------------------------------------------------------
-# Content quality / cross-referencing / fact-check heuristics
-# ---------------------------------------------------------------------
+model = None
+embedder = None
+np = None
+joblib = None
+
+def get_ml_resources():
+    """Lazy load ML resources"""
+    global model, embedder, np, joblib
+    if model is None or embedder is None:
+        try:
+            logger.info("Loading ML model and embedder...")
+            import joblib as _joblib
+            import numpy as _np
+            from sentence_transformers import SentenceTransformer as _SentenceTransformer
+            
+            # Assign to globals so they can be used elsewhere
+            joblib = _joblib
+            np = _np
+            
+            model = joblib.load(os.path.join(ROOT_DIR, 'data', 'fake_news_model.pkl'))
+            embedder = _SentenceTransformer(os.path.join(ROOT_DIR, 'data', 'sentence_embedder'))
+            logger.info("✅ Model and embedder loaded successfully")
+        except Exception as e:
+            logger.exception("❌ Error loading model/embedder: %s", e)
+            model = None
+            embedder = None
+            np = None
+    return model, embedder
+
+
+
+NEWS_API_KEY = os.getenv('NEWS_API_KEY')
+if not NEWS_API_KEY or NEWS_API_KEY == '10a09f51f6ed4b6494bda63da3a64b59':
+    logger.warning("⚠️  No valid NewsAPI key found in .env. Please set NEWS_API_KEY.")
+else:
+    logger.info("✅ Using NewsAPI key from environment")
+
+
+# CREDIBILITY_SCORES and get_credibility_score imported from config.config
+
+
 def analyze_content_quality(text):
     """Analyze the quality and characteristics of the news text"""
     if not isinstance(text, str):
@@ -224,22 +176,28 @@ def fact_check_indicators(text, results):
     indicators['fact_score'] = max(0, min(100, fact_score))
     return indicators
 
-def determine_verdict(credibility_score, consistency_score, fact_score, content_quality, source_count):
+def determine_verdict(credibility_score, consistency_score, fact_score, content_quality, source_count, top_sources=None):
     """Determine final TRUE/FALSE verdict based on comprehensive analysis.
 
-    This version normalizes source_count into a 0-100 factor and uses
-    weights that sum to 1.0 so final_score stays in 0-100 range.
+    This version rewards finding high-credibility sources heavily.
     """
     source_factor = (min(source_count, 5) / 5) * 100  # 0..100
+    
+    # Check for authoritative sources
+    high_cred_sources = 0
+    if top_sources:
+        for s in top_sources:
+            if s.get('credibility', 0) >= 80:
+                high_cred_sources += 1
 
     # Weights sum to 1.0 (tweak if desired)
-    w_cred = 0.28
-    w_cons = 0.22
-    w_fact = 0.22
-    w_quality = 0.13
+    w_cred = 0.35      # Increased from 0.28
+    w_cons = 0.25      # Increased from 0.22
+    w_fact = 0.15      # Reduced from 0.22 (naive regex is less reliable)
+    w_quality = 0.10   # Reduced from 0.13
     w_sources = 0.15
 
-    final_score = (
+    base_score = (
         credibility_score * w_cred +
         consistency_score * w_cons +
         fact_score * w_fact +
@@ -247,12 +205,20 @@ def determine_verdict(credibility_score, consistency_score, fact_score, content_
         source_factor * w_sources
     )
 
+    # BOOST: If we found at least one highly credible source (Reuters, AP, BBC, etc.),
+    # we should trust it significantly more than our regex heuristics.
+    final_score = base_score
+    if high_cred_sources >= 1:
+        final_score = max(final_score, 85.0)  # At least LIKELY TRUE
+        if high_cred_sources >= 2:
+            final_score = max(final_score, 92.0) # Almost certainly TRUE
+        
     final_score = max(0.0, min(100.0, final_score))
 
     if final_score >= 80:
         verdict = "TRUE"
         confidence = "HIGH"
-        explanation = "Multiple credible sources confirm this news with consistent information and verifiable details."
+        explanation = "Multiple credible sources (like Reuters, AP, or major networks) confirm this news."
     elif final_score >= 60:
         verdict = "LIKELY TRUE"
         confidence = "MEDIUM"
@@ -273,14 +239,16 @@ def determine_verdict(credibility_score, consistency_score, fact_score, content_
         'explanation': explanation
     }
 
-# ---------------------------------------------------------------------
-# Searching functions with caching
-# ---------------------------------------------------------------------
+
 @lru_cache(maxsize=128)
 def cached_search_newsapi(query):
     """Cached wrapper for NewsAPI search. Returns a JSON-serializable tuple of results."""
-    # Try to use NewsAPI even with default key (it might work for limited requests)
+    
     try:
+        if not NEWS_API_KEY or NEWS_API_KEY == '10a09f51f6ed4b6494bda63da3a64b59' or NEWS_API_KEY == 'your_news_api_key_here':
+             logger.warning("Skipping NewsAPI search: No valid API key provided")
+             return tuple()
+
         url = "https://newsapi.org/v2/everything"
         params = {
             'q': query,
@@ -289,7 +257,7 @@ def cached_search_newsapi(query):
             'sortBy': 'relevancy',
             'pageSize': 10
         }
-        resp = session.get(url, params=params, timeout=10)
+        resp = session.get(url, params=params, timeout=3)
         resp.raise_for_status()
         data = resp.json()
         results = []
@@ -315,7 +283,10 @@ def cached_search_google_news(query):
     try:
         logger.info(f"Searching Google News for: {query}")
         rss_url = f"https://news.google.com/rss/search?q={requests.utils.quote(query)}"
-        resp = session.get(rss_url, timeout=10)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        resp = session.get(rss_url, headers=headers, timeout=3)
         resp.raise_for_status()
         logger.info(f"Google News RSS response status: {resp.status_code}, length: {len(resp.content)}")
         
@@ -353,7 +324,7 @@ def cached_search_reuters(query):
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-        resp = session.get(search_url, headers=headers, timeout=10)
+        resp = session.get(search_url, headers=headers, timeout=3)
         resp.raise_for_status()
         soup = BeautifulSoup(resp.content, 'html.parser')
         results = []
@@ -389,8 +360,12 @@ def cached_search_indian_news(query):
         hindu_rss_url = f"https://www.thehindu.com/news/national/?service=rss"
         results = []
         
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        
         try:
-            resp = session.get(hindu_rss_url, timeout=10)
+            resp = session.get(hindu_rss_url, headers=headers, timeout=3)
             resp.raise_for_status()
             soup = BeautifulSoup(resp.content, 'xml')
             items = soup.find_all('item')[:5]
@@ -400,7 +375,7 @@ def cached_search_indian_news(query):
                 url = item.link.text if item.find('link') and item.link and item.link.text else ''
                 published = item.pubDate.text if item.find('pubDate') and item.pubDate and item.pubDate.text else ''
                 
-                # Check if the query terms are in the title
+               
                 query_terms = query.lower().split()
                 title_lower = title.lower()
                 if any(term in title_lower for term in query_terms):
@@ -416,10 +391,10 @@ def cached_search_indian_news(query):
         except Exception as e:
             logger.exception("The Hindu RSS error: %s", e)
         
-        # Search Times of India RSS feed
+       
         try:
             toi_rss_url = f"https://timesofindia.indiatimes.com/rssfeedstopstories.cms"
-            resp = session.get(toi_rss_url, timeout=10)
+            resp = session.get(toi_rss_url, headers=headers, timeout=3)
             resp.raise_for_status()
             soup = BeautifulSoup(resp.content, 'xml')
             items = soup.find_all('item')[:5]
@@ -429,7 +404,7 @@ def cached_search_indian_news(query):
                 url = item.link.text if item.find('link') and item.link and item.link.text else ''
                 published = item.pubDate.text if item.find('pubDate') and item.pubDate and item.pubDate.text else ''
                 
-                # Check if the query terms are in the title
+               
                 query_terms = query.lower().split()
                 title_lower = title.lower()
                 if any(term in title_lower for term in query_terms):
@@ -451,14 +426,12 @@ def cached_search_indian_news(query):
         logger.exception("Indian news search error: %s", e)
         return tuple()
 
-# ---------------------------------------------------------------------
-# Comprehensive verification that aggregates the searches and does analysis
-# ---------------------------------------------------------------------
+
 def comprehensive_verification_api(text):
     """Provide comprehensive news verification for API endpoint"""
     all_results = []
 
-    # search_newsapi, google, reuters (use cached wrappers)
+    
     try:
         if NEWS_API_KEY != '10a09f51f6ed4b6494bda63da3a64b59':
             all_results.extend(list(cached_search_newsapi(text)))
@@ -486,7 +459,7 @@ def comprehensive_verification_api(text):
 
     logger.info(f"Total results before filtering: {len(all_results)}")
 
-    # Remove duplicates and very short titles
+    
     unique_results = []
     seen_titles = set()
     for result in all_results:
@@ -502,7 +475,7 @@ def comprehensive_verification_api(text):
 
     logger.info(f"Results after filtering: {len(unique_results)}")
 
-    # Sort by credibility desc
+   
     unique_results.sort(key=lambda x: x.get('credibility', 0), reverse=True)
 
     if unique_results:
@@ -517,7 +490,8 @@ def comprehensive_verification_api(text):
             consistency_analysis.get('score', 0),
             fact_analysis.get('fact_score', 0),
             content_analysis.get('quality_score', 0),
-            len(unique_results)
+            len(unique_results),
+            top_sources=unique_results[:5]
         )
 
         logger.info(f"Returning results with {len(unique_results)} sources")
@@ -535,7 +509,7 @@ def comprehensive_verification_api(text):
             'content_analysis': content_analysis
         }
 
-    # No sources found
+   
     logger.info("No unique results found, returning UNVERIFIED")
     content_analysis = analyze_content_quality(text)
     fact_analysis = fact_check_indicators(text, [])
@@ -558,18 +532,17 @@ def comprehensive_verification_api(text):
         'content_analysis': content_analysis
     }
 
-# ---------------------------------------------------------------------
-# Flask routes
-# ---------------------------------------------------------------------
+
 @app.route('/')
 def index_route():
     """Main page with news verification form"""
-    # Put index.html in templates/ and static files in static/
+   
     return render_template('index.html')
 
 @app.route('/predict', methods=['POST'])
 def predict():
     """ML model prediction endpoint - robust mapping of class labels and probabilities"""
+    model, embedder = get_ml_resources()
     if model is None or embedder is None:
         return jsonify({'error': 'Model or embedder not loaded'}), 500
 
@@ -581,18 +554,18 @@ def predict():
 
         cleaned_text = text.lower().strip()
 
-        # Encode text defensively
+       
         try:
             embedding = embedder.encode([cleaned_text])
         except TypeError:
-            # Some versions of SentenceTransformer accept convert_to_numpy arg
+           
             embedding = embedder.encode([cleaned_text], convert_to_numpy=True)
 
         embedding = np.asarray(embedding)
         if embedding.ndim == 1:
             embedding = embedding.reshape(1, -1)
 
-        # Model prediction
+       
         try:
             pred_label = model.predict(embedding)[0]
         except Exception as e:
@@ -639,6 +612,7 @@ def verify():
             return jsonify({'error': 'No text provided'}), 400
 
         ml_result = None
+        model, embedder = get_ml_resources()
         if model is not None and embedder is not None:
             try:
                 cleaned_text = text.lower().strip()
@@ -708,6 +682,7 @@ def live_news():
             published_at = item.pubDate.text if item.find('pubDate') and item.pubDate and item.pubDate.text else ''
 
             ml_result = None
+            model, embedder = get_ml_resources()
             if model is not None and embedder is not None and title:
                 try:
                     emb = embedder.encode([title])

@@ -336,5 +336,35 @@ function displayComprehensiveResults(data) {
                 </div>
             </div>
         `;
+
+        if (online.top_sources && online.top_sources.length > 0) {
+            html += `
+                <div class="sources-section">
+                    <div class="sources-title">
+                        <i class="fas fa-newspaper"></i> Verified Sources (${online.top_sources.length})
+                    </div>
+                    ${online.top_sources.map(source => `
+                        <div class="source-item">
+                            <div class="source-title">${source.title}</div>
+                            <div class="source-meta">
+                                <span>${source.source} • ${source.api_source}</span>
+                                <span class="credibility-badge credibility-${source.credibility >= 80 ? 'high' : source.credibility >= 60 ? 'medium' : 'low'}">
+                                    ${source.credibility}/100
+                                </span>
+                            </div>
+                            <div class="source-link" style="margin-top: 5px;">
+                                <a href="${source.url}" target="_blank" style="color: #3498db; text-decoration: none; font-size: 0.9em;">
+                                    <i class="fas fa-external-link-alt"></i> Read Original
+                                </a>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
     }
+    
+    resultsDiv.innerHTML = html;
+    resultsDiv.style.display = 'block';
 }
+
